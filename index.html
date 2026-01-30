@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>ERP 점검 웹앱</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <div id="overlay" class="overlay"></div>
+
+        <header>
+            <button id="homeBtn" class="icon-btn home-btn" title="처음으로">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M0 0h24v24H0V0z" fill="none" />
+                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z" />
+                </svg>
+            </button>
+            <h1 class="header-title">ERP 점검 웹앱</h1>
+            <div class="hamburger-menu" id="hamburger">
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+            </div>
+        </header>
+
+        <nav id="sidenav" class="sidenav">
+            <div class="sidenav-content">
+                <div id="upload-section" class="sidenav-section">
+                    <h3>새 양식 업로드</h3>
+                    <input type="file" id="excelFile" accept=".xls,.xlsx" />
+                    <button onclick="handleUpload()">업로드</button>
+                </div>
+
+                <div class="form-selector sidenav-section">
+                    <h3>기존 양식 불러오기</h3>
+                    <select id="formSelect" onchange="loadSelectedForm()">
+                        <option value="">-- 양식을 선택해주세요 --</option>
+                    </select>
+                    <div id="formListStatus" style="margin-top: 5px; font-size: 0.9em;"></div>
+                </div>
+
+                <div class="sidenav-section reset-section">
+                    <button id="resetFavoritesBtn" class="reset-button">⭐ 즐겨찾기 초기화</button>
+                </div>
+            </div>
+        </nav>
+
+        <main>
+            <div id="status"></div>
+
+            <div id="favoritesSection" class="favorites-section">
+                <h3>⭐ 즐겨찾기</h3>
+                <div class="fav-buttons-container">
+                    <button id="favBtn1" class="fav-button" data-fav-id="1" disabled>로딩중</button>
+                    <button id="favBtn2" class="fav-button" data-fav-id="2" disabled>로딩중</button>
+                    <button id="favBtn3" class="fav-button" data-fav-id="3" disabled>로딩중</button>
+                </div>
+            </div>
+
+            <div id="dynamicFormContainer" class="form-section">
+                <h3>측정값 입력 폼</h3>
+                <p id="formMessage">햄버거 메뉴(☰)를 열어 새 파일을 업로드하거나 기존 양식을 선택해주세요.</p>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
