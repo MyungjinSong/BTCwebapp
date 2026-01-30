@@ -512,8 +512,17 @@ async function loadSelectedForm() {
     const formSelect = document.getElementById('formSelect');
     const selectedOption = formSelect.options[formSelect.selectedIndex];
     const sheetName = selectedOption.value;
+    const formContainer = document.getElementById('dynamicFormContainer');
 
-    if (!sheetName) return; // Reset logic handled in index.html or empty return
+    // [수정] 양식 선택이 없을 경우 (또는 홈 버튼 클릭 시) 초기 화면으로 복귀
+    if (!sheetName) {
+        formContainer.innerHTML = '<h3>측정값 입력 폼</h3><p id="formMessage">햄버거 메뉴(☰)를 열어 새 파일을 업로드하거나 기존 양식을 선택해주세요.</p>';
+        currentSheetInfo = null;
+        document.getElementById('favoritesSection').classList.remove('hidden');
+        updateHomeButtonVisibility();
+        closeMenu();
+        return;
+    }
 
     showStatus(`${sheetName} 로드 중...`, 'loading');
     isMeasurementDirty = false;
@@ -534,11 +543,17 @@ async function loadSelectedForm() {
             showStatus('로드 완료', 'success', 3000);
             updateHomeButtonVisibility();
         } else {
-            document.getElementById('dynamicFormContainer').innerHTML = '<p class="error">데이터가 없습니다.</p>';
+            formContainer.innerHTML = '<p class="error">데이터가 없습니다.</p>';
+            // 데이터가 없으면 다시 즐겨찾기 보이기
+            document.getElementById('favoritesSection').classList.remove('hidden');
         }
 
     } catch (error) {
         showStatus(`폼 로딩 오류: ${error.message}`, 'error');
+        // 에러 발생 시에도 안전하게 초기화
+        currentSheetInfo = null;
+        document.getElementById('favoritesSection').classList.remove('hidden');
+        updateHomeButtonVisibility();
     }
 }
 
