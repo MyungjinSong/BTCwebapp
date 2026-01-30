@@ -546,6 +546,18 @@ async function loadSelectedForm() {
 function initializeFavorites() {
     favorites = getFromStorage('favorites') || {};
     document.getElementById('favoritesSection').addEventListener('click', handleFavoriteClick);
+
+    // [복원] 홈버튼 이벤트 리스너
+    const homeBtn = document.getElementById('homeBtn');
+    if (homeBtn) {
+        homeBtn.addEventListener('click', function () {
+            document.getElementById('formSelect').value = '';
+            currentSheetInfo = null;
+            loadSelectedForm();
+            updateHomeButtonVisibility();
+            addHomeStateToHistory();
+        });
+    }
 }
 
 function updateFavoriteButtons() {
@@ -586,16 +598,73 @@ function handleFavoriteClick(e) {
         }
     } else {
         // 등록
-        if (currentSheetInfo) {
-            if (confirm(`'${currentSheetInfo.displayName}' 등록하시겠습니까?`)) {
+        if (currentSheetInfo && currentSheetInfo.sheetName) {
+            if (confirm(`현재 양식 '${currentSheetInfo.displayName}'를 이 즐겨찾기에 등록하시겠습니까?`)) {
                 favorites[favId] = { sheetName: currentSheetInfo.sheetName, displayName: currentSheetInfo.displayName };
                 saveToStorage('favorites', favorites);
                 updateFavoriteButtons();
+                showStatus(`'${currentSheetInfo.displayName}'가 즐겨찾기에 등록되었습니다.`, 'success', 3000);
             }
         } else {
-            alert('등록할 양식을 먼저 불러오세요.');
+            // [복원] 양식이 로드되지 않았을 경우, 선택 팝업을 띄움
+            promptForFavoriteSelection(favId);
         }
     }
+}
+
+function promptForFavoriteSelection(favId) {
+    const formSelect = document.getElementById('formSelect');
+    if (formSelect.options.length <= 1) {
+        showStatus('등록할 양식이 없습니다. 먼저 새 양식을 업로드해주세요.', 'error', 3000);
+        return;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'fav-modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'fav-modal-content';
+
+    modal.innerHTML = `
+            <h4>즐겨찾기 등록</h4>
+            <p>이 슬롯에 등록할 양식을 선택해주세요.</p>
+            <select id="favModalSelect"></select>
+            <div class="fav-modal-buttons">
+                <button id="favModalCancel">취소</button>
+                <button id="favModalRegister" class="primary">등록</button>
+            </div>
+        `;
+
+    document.body.appendChild(overlay);
+    document.body.appendChild(modal);
+
+    const modalSelect = document.getElementById('favModalSelect');
+    for (let i = 1; i < formSelect.options.length; i++) {
+        const clonedOption = formSelect.options[i].cloneNode(true);
+        const cleanName = clonedOption.dataset.displayName || clonedOption.textContent.split(' (')[0];
+        clonedOption.textContent = cleanName; // 팝업에서는 수정 날짜 없이 깔끔한 이름만 보여줌
+        modalSelect.appendChild(clonedOption);
+    }
+
+    function closeModal() {
+        document.body.removeChild(overlay);
+        document.body.removeChild(modal);
+    }
+
+    document.getElementById('favModalRegister').onclick = function () {
+        const selectedOption = modalSelect.options[modalSelect.selectedIndex];
+        const sheetName = selectedOption.value;
+        const displayName = selectedOption.dataset.displayName || sheetName;
+
+        favorites[favId] = { sheetName, displayName };
+        saveToStorage('favorites', favorites);
+        updateFavoriteButtons();
+        showStatus(`'${displayName}'가 즐겨찾기에 등록되었습니다.`, 'success', 3000);
+        closeModal();
+    };
+
+    document.getElementById('favModalCancel').onclick = closeModal;
+    overlay.onclick = closeModal;
 }
 
 // --- 유효성 검사 로직 (Validation) ---
