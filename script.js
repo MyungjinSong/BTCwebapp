@@ -4,7 +4,7 @@ console.log("Script.js 로드됨.");
 // [설정] 구글 앱스 스크립트(GAS) 웹 앱 URL을 여기에 입력하세요.
 // 'backend_gas_v2.js'를 웹 앱으로 배포한 후 주소를 복사해 넣으세요.
 // =================================================================================
-const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbykrEawecNeHSypb9hQEEjp3A-dWrkHlN7--96n3TI/dev';
+const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzuWS4Q5kTzDRH4IBpeXBa69KngElRdArtTCzTV0NDQsB3y4oABBIzrTLuPOZH5KOPP/exec';
 
 // 전역 변수
 let currentSheetInfo = null;
