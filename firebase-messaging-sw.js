@@ -19,11 +19,13 @@ const messaging = firebase.messaging();
 // 백그라운드 메시지 수신 처리
 messaging.onBackgroundMessage((payload) => {
     console.log('[firebase-messaging-sw.js] Received background message ', payload);
-    const notificationTitle = payload.notification.title;
+    // Data-only 메시지 처리
+    const data = payload.data;
+    const notificationTitle = data.title;
     const notificationOptions = {
-        body: payload.notification.body,
-        icon: payload.notification.icon || '/icon.png', // 아이콘 경로가 있다면 수정 필요
-        data: payload.data
+        body: data.body,
+        icon: data.icon || '/icon.png',
+        data: { url: data.url }
     };
 
     self.registration.showNotification(notificationTitle, notificationOptions);

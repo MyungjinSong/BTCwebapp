@@ -242,10 +242,12 @@ async function sendTokenToServer(token) {
 if (messaging) {
     messaging.onMessage((payload) => {
         console.log('Message received. ', payload);
-        const title = payload.notification.title;
+        // Data-only 메시지 처리
+        const data = payload.data;
+        const title = data.title;
         const options = {
-            body: payload.notification.body,
-            icon: payload.notification.icon
+            body: data.body,
+            icon: data.icon
         };
         // 브라우저 기본 알림 띄우기 (페이지가 포커스 되어 있어도 알림을 띄우고 싶다면)
         // 또는 커스텀 토스트 메시지 사용 가능
