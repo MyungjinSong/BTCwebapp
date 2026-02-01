@@ -149,42 +149,51 @@ window.onload = function () {
             });
     }
 
-    // 알림 설정 버튼 리스너 (설정 메뉴 등이 있다면 거기서 호출)
-    const notifBtn = document.getElementById('notificationBtn');
-    if (notifBtn) {
-        notifBtn.addEventListener('click', requestNotificationPermission);
+    // 알림 토글 리스너
+    const notifToggle = document.getElementById('notificationToggle');
+    if (notifToggle) {
+        notifToggle.addEventListener('change', function (e) {
+            if (this.checked) {
+                // ON으로 변경 시 모달 띄우기
+                openKeywordModal();
+            } else {
+                // OFF로 변경 시 알림 비활성화
+                disableNotification();
+            }
+        });
     }
+
+    // 모달 버튼 리스너
+    document.getElementById('closeKeywordModalBtn').addEventListener('click', closeKeywordModal);
+    document.getElementById('saveKeywordBtn').addEventListener('click', handleKeywordSave);
+    document.getElementById('keywordModalOverlay').addEventListener('click', closeKeywordModal);
 };
 
 // --- Firebase Notification Logic ---
 async function requestNotificationPermission() {
     if (!messaging) {
         showStatus('Firebase가 초기화되지 않았습니다.', 'error');
-        return;
+        return null;
     }
-
-    showStatus('알림 권한을 요청 중입니다...', 'loading');
 
     try {
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
             console.log('Notification permission granted.');
 
-            // [수정] 명시적으로 등록 확인 및 재등록 시도
             let registration = await navigator.serviceWorker.getRegistration();
 
             if (!registration) {
                 console.log('No active registration found. Registering new one...');
                 try {
                     registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js', { scope: './' });
-                    console.log('New registration successful:', registration);
                 } catch (regErr) {
                     console.error('Explicit registration failed:', regErr);
-                    throw new Error('서비스 워커 파일(firebase-messaging-sw.js)을 찾을 수 없거나 등록할 수 없습니다.');
+                    throw new Error('서비스 워커 등록 실패');
                 }
             }
 
-            // 등록 대기 (Active 상태 보장)
+            // 등록 대기
             if (!registration.active && registration.installing) {
                 await new Promise(resolve => {
                     const worker = registration.installing;
@@ -194,9 +203,6 @@ async function requestNotificationPermission() {
                 });
             }
 
-            console.log('Using Service Worker Registration:', registration);
-
-            // 토큰 가져오기 (serviceWorkerRegistration 옵션 필수)
             const token = await messaging.getToken({
                 vapidKey: VAPID_KEY,
                 serviceWorkerRegistration: registration
@@ -204,37 +210,113 @@ async function requestNotificationPermission() {
 
             if (token) {
                 console.log('FCM Token:', token);
-                await sendTokenToServer(token);
+                return token;
             } else {
-                console.log('No registration token available. Request permission to generate one.');
+                console.log('No registration token available.');
                 showStatus('토큰을 가져올 수 없습니다.', 'error');
+                return null;
             }
         } else {
             console.log('Unable to get permission to notify.');
             showStatus('알림 권한이 거부되었습니다.', 'error');
+            return null;
         }
     } catch (err) {
         console.log('An error occurred while retrieving token. ', err);
         showStatus(`알림 설정 실패: ${err.message}`, 'error');
+        return null;
     }
 }
 
-async function sendTokenToServer(token) {
-    showStatus('서버에 기기를 등록 중입니다...', 'loading');
+async function sendTokenToServer(token, keywords = "", isActive = true) {
+    showStatus('서버에 설정을 저장 중입니다...', 'loading');
     try {
-        // GAS에 토큰 등록 요청
         const response = await callApi('registerToken', 'POST', {
             token: token,
-            userAgent: navigator.userAgent
+            userAgent: navigator.userAgent,
+            keywords: keywords,
+            isActive: isActive
         });
         if (response.success) {
-            showStatus('알림 설정이 완료되었습니다!', 'success', 3000);
+            showStatus('알림 설정이 저장되었습니다!', 'success', 3000);
         } else {
-            showStatus(`서버 등록 실패: ${response.message}`, 'error');
+            showStatus(`서버 저장 실패: ${response.message}`, 'error');
+            // 실패 시 토글 상태 복구 로직이 필요할 수 있음
         }
     } catch (e) {
         console.error(e);
         showStatus('서버 통신 오류', 'error');
+    }
+}
+
+// --- Keyword Modal Logic ---
+function openKeywordModal() {
+    document.getElementById('keywordModalOverlay').classList.add('visible');
+    document.getElementById('keywordModal').classList.add('visible');
+    // TODO: 기존 키워드 불러오기 (서버 연동 전엔 로컬스토리지 or 빈값)
+    const storedKeywords = getFromStorage('userKeywords') || '';
+    document.getElementById('keywordInput').value = storedKeywords;
+}
+
+function closeKeywordModal() {
+    document.getElementById('keywordModalOverlay').classList.remove('visible');
+    document.getElementById('keywordModal').classList.remove('visible');
+
+    // 취소 시 토글이 켜져있었다면 끄기 (저장되지 않았으므로)
+    // 단, 이미 활성화된 상태에서 단순히 팝업만 닫는 경우라면 유지해야 함.
+    // 여기서는 단순화를 위해 취소 시 체크박스 상태 확인
+    // 현재는 "ON" 동작 시에만 모달이 뜨므로, 취소하면 OFF로 되돌리는게 자연스러움
+    // 하지만 이미 켜져있는 상태에서 수정하려고 눌렀을때는? (현재 UI엔 수정 버튼이 따로 없음. 토글 껐다 켜야함)
+    // 일단 토글을 끄는 것으로 처리.
+    const notifToggle = document.getElementById('notificationToggle');
+    if (notifToggle && notifToggle.checked) {
+        // 이미 저장된 키워드가 있는지 확인? 일단은 UI적으로만 끔
+        // 사용자 경험상 취소하면 '변경 취소'여야 하는데, 토글 ON -> Cancel -> 토글 OFF가 맞음.
+        notifToggle.checked = false;
+    }
+}
+
+async function handleKeywordSave() {
+    const keywordInput = document.getElementById('keywordInput');
+    const keywords = keywordInput.value.trim();
+
+    // 키워드 저장 로직
+    showStatus('알림 권한 확인 중...', 'loading');
+    const token = await requestNotificationPermission();
+
+    if (token) {
+        document.getElementById('keywordModalOverlay').classList.remove('visible');
+        document.getElementById('keywordModal').classList.remove('visible');
+
+        // 로컬 저장
+        saveToStorage('userKeywords', keywords);
+
+        // 서버 전송
+        await sendTokenToServer(token, keywords, true);
+
+        // 토글 ON 유지
+        const notifToggle = document.getElementById('notificationToggle');
+        if (notifToggle) notifToggle.checked = true;
+    } else {
+        // 권한 실패 시
+        const notifToggle = document.getElementById('notificationToggle');
+        if (notifToggle) notifToggle.checked = false;
+        closeKeywordModal();
+    }
+}
+
+async function disableNotification() {
+    // 토큰이 있나?
+    if (!messaging) return;
+
+    // 현재 토큰 가져오기 (권한이 이미 있으므로 바로 나올 것임)
+    try {
+        const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+        if (token) {
+            await sendTokenToServer(token, "", false);
+        }
+    } catch (e) {
+        console.error("Disable error", e);
     }
 }
 
