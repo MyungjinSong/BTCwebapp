@@ -139,11 +139,13 @@ window.onload = function () {
         updateHomeButtonVisibility();
     });
 
-    // 앱 시작 시 서비스 워커 등록 (로컬호스트나 HTTPS에서만 동작)
+    // 앱 시작 시 서비스 워커 등록 및 설정 동기화
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./firebase-messaging-sw.js')
             .then((registration) => {
                 console.log('Service Worker registered with scope:', registration.scope);
+                // 서비스 워커 등록 성공 후 서버 설정 동기화 시도
+                syncNotificationSettingsWithServer();
             }).catch((err) => {
                 console.log('Service Worker registration failed:', err);
             });
@@ -243,13 +245,42 @@ async function sendTokenToServer(token, keywords = "", isActive = true) {
         });
         if (response.success) {
             showStatus('알림 설정이 저장되었습니다!', 'success', 3000);
+            // 성공 시 로컬 스토리지도 확실히 갱신
+            saveToStorage('isNotificationActive', isActive);
+            saveToStorage('userKeywords', keywords);
         } else {
             showStatus(`서버 저장 실패: ${response.message}`, 'error');
-            // 실패 시 토글 상태 복구 로직이 필요할 수 있음
         }
     } catch (e) {
         console.error(e);
         showStatus('서버 통신 오류', 'error');
+    }
+}
+
+async function syncNotificationSettingsWithServer() {
+    if (!messaging) return;
+
+    try {
+        // 이미 권한이 있는 경우에만 토큰을 가져와 동기화 시도
+        if (Notification.permission !== 'granted') return;
+
+        const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+        if (!token) return;
+
+        const response = await callApi('getUserSettings', 'GET', { token: token });
+        if (response.success) {
+            console.log("Server settings synced:", response);
+            // 로컬 스토리지 및 UI 갱신
+            saveToStorage('userKeywords', response.keywords || "");
+            saveToStorage('isNotificationActive', response.isActive);
+
+            const notifToggle = document.getElementById('notificationToggle');
+            if (notifToggle) {
+                notifToggle.checked = response.isActive;
+            }
+        }
+    } catch (e) {
+        console.log("Sync failed (not usually an error if first time):", e);
     }
 }
 
