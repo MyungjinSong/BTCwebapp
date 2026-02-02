@@ -129,7 +129,6 @@ window.onload = function () {
     initializeFavorites();
     updateHomeButtonVisibility();
     addHomeStateToHistory();
-    addHomeStateToHistory();
 
     window.addEventListener('popstate', function (event) {
         // 뒤로가기 시 홈 화면으로 복귀
@@ -454,6 +453,7 @@ function checkIosPwaStatusAndShowGuide() {
     }
     return false; // 통과
 }
+
 
 function closeIosSettingsGuide() {
     const guide = document.getElementById('iosInstallGuide');
@@ -839,7 +839,7 @@ async function loadSelectedForm() {
     const sheetName = selectedOption.value;
     const formContainer = document.getElementById('dynamicFormContainer');
 
-    // [수정] 양식 선택이 없을 경우 (또는 홈 버튼 클릭 시) 초기 화면으로 복귀
+    // 양식 선택이 없을 경우 (또는 홈 버튼 클릭 시) 초기 화면으로 복귀
     if (!sheetName) {
         const isNotifActive = getFromStorage('isNotificationActive') === true;
         const checkedAttr = isNotifActive ? 'checked' : '';
