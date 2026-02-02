@@ -129,7 +129,7 @@ window.onload = function () {
     initializeFavorites();
     updateHomeButtonVisibility();
     addHomeStateToHistory();
-    checkIosPwaStatus();
+    addHomeStateToHistory();
 
     window.addEventListener('popstate', function (event) {
         // 뒤로가기 시 홈 화면으로 복귀
@@ -153,22 +153,51 @@ window.onload = function () {
     }
 
     // 알림 토글 리스너 및 초기 상태 설정
-    const notifToggle = document.getElementById('notificationToggle');
-    if (notifToggle) {
-        // 초기 로드 시 로컬 스토리지의 상태 반영 (서버 연동 전 임시)
-        const isNotifActive = getFromStorage('isNotificationActive') === true;
-        notifToggle.checked = isNotifActive;
+    // 사이드바 토글과 메인 토글 모두 처리하기 위해 공통 함수 사용 또는 각각 이벤트 등록
+    const sideToggle = document.getElementById('notificationToggle');
+    const mainToggle = document.getElementById('notificationToggleMain'); // 메인 화면 토글 ID 예정
 
-        notifToggle.addEventListener('change', function (e) {
-            if (this.checked) {
-                // ON으로 변경 시 모달 띄우기
-                openKeywordModal();
-            } else {
-                // OFF로 변경 시 알림 비활성화
-                disableNotification();
-            }
-        });
+    // 초기 상태 로드
+    const isNotifActive = getFromStorage('isNotificationActive') === true;
+    if (sideToggle) sideToggle.checked = isNotifActive;
+    if (mainToggle) mainToggle.checked = isNotifActive;
+
+    // 공통 핸들러
+    function handleToggleChange(e) {
+        // iOS PWA 체크
+        if (checkIosPwaStatusAndShowGuide()) {
+            e.target.checked = false; // 토글 원복
+            // 다른 쪽 토글도 원복
+            if (sideToggle) sideToggle.checked = false;
+            if (mainToggle) mainToggle.checked = false;
+            return;
+        }
+
+        const newState = e.target.checked;
+
+        // UI 동기화
+        if (sideToggle) sideToggle.checked = newState;
+        if (mainToggle) mainToggle.checked = newState;
+
+        if (newState) {
+            // ON으로 변경 시 모달 띄우기
+            openKeywordModal();
+        } else {
+            // OFF로 변경 시 알림 비활성화
+            disableNotification();
+        }
     }
+
+    if (sideToggle) sideToggle.addEventListener('change', handleToggleChange);
+    // 메인 토글은 동적으로 생성되므로, 생성 시점에 이벤트 리스너를 달거나 이벤트 위임이 필요함.
+    // 여기서는 document에 위임하거나 생성 로직에서 처리. 
+    // 생성 로직(loadSelectedForm 등)에서 리스너를 달아주는 것이 좋음.
+    // 하지만 간편하게 document 레벨에서 change 이벤트를 잡아서 처리하는게 나을 수 있음 (동적 요소).
+    document.addEventListener('change', function (e) {
+        if (e.target && e.target.id === 'notificationToggleMain') {
+            handleToggleChange(e);
+        }
+    });
 
     // 모달 버튼 리스너
     document.getElementById('closeKeywordModalBtn').addEventListener('click', closeKeywordModal);
@@ -275,10 +304,11 @@ async function syncNotificationSettingsWithServer() {
             saveToStorage('userKeywords', response.keywords || "");
             saveToStorage('isNotificationActive', response.isActive);
 
-            const notifToggle = document.getElementById('notificationToggle');
-            if (notifToggle) {
-                notifToggle.checked = response.isActive;
-            }
+            const sideToggle = document.getElementById('notificationToggle');
+            const mainToggle = document.getElementById('notificationToggleMain');
+
+            if (sideToggle) sideToggle.checked = response.isActive;
+            if (mainToggle) mainToggle.checked = response.isActive;
         }
     } catch (e) {
         console.log("Sync failed (not usually an error if first time):", e);
@@ -304,12 +334,11 @@ function closeKeywordModal() {
     // 현재는 "ON" 동작 시에만 모달이 뜨므로, 취소하면 OFF로 되돌리는게 자연스러움
     // 하지만 이미 켜져있는 상태에서 수정하려고 눌렀을때는? (현재 UI엔 수정 버튼이 따로 없음. 토글 껐다 켜야함)
     // 일단 토글을 끄는 것으로 처리.
-    const notifToggle = document.getElementById('notificationToggle');
-    if (notifToggle && notifToggle.checked) {
-        // 이미 저장된 키워드가 있는지 확인? 일단은 UI적으로만 끔
-        // 사용자 경험상 취소하면 '변경 취소'여야 하는데, 토글 ON -> Cancel -> 토글 OFF가 맞음.
-        notifToggle.checked = false;
-    }
+    const sideToggle = document.getElementById('notificationToggle');
+    const mainToggle = document.getElementById('notificationToggleMain');
+
+    if (sideToggle && sideToggle.checked) sideToggle.checked = false;
+    if (mainToggle && mainToggle.checked) mainToggle.checked = false;
 }
 
 async function handleKeywordSave() {
@@ -331,13 +360,22 @@ async function handleKeywordSave() {
         // 서버 전송
         await sendTokenToServer(token, keywords, true);
 
-        // 토글 ON 유지
-        const notifToggle = document.getElementById('notificationToggle');
-        if (notifToggle) notifToggle.checked = true;
+        // 토글 ON 유지 및 동기화
+        const sideToggle = document.getElementById('notificationToggle');
+        const mainToggle = document.getElementById('notificationToggleMain');
+        if (sideToggle) sideToggle.checked = true;
+        if (mainToggle) mainToggle.checked = true;
+
+        // 저장 시 사이드바 닫기 (요청사항 3)
+        closeMenu();
+
     } else {
         // 권한 실패 시
-        const notifToggle = document.getElementById('notificationToggle');
-        if (notifToggle) notifToggle.checked = false;
+        const sideToggle = document.getElementById('notificationToggle');
+        const mainToggle = document.getElementById('notificationToggleMain');
+        if (sideToggle) sideToggle.checked = false;
+        if (mainToggle) mainToggle.checked = false;
+
         closeKeywordModal();
     }
 }
@@ -401,30 +439,26 @@ function showStatus(message, type, duration = 0) {
 }
 
 // --- iOS PWA Install Guide Logic ---
-function checkIosPwaStatus() {
+// 변경: 로드시 체크가 아니라, 토글 동작 시 호출되어 가이드 표시 여부를 결정
+function checkIosPwaStatusAndShowGuide() {
     const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
 
+    // 아이폰이면서 브라우저(사파리 등)인 경우
     if (isIos && !isStandalone) {
-        // 아이폰인데 홈 화면 추가가 안 된 경우 (사파리로 접속 중)
         const guide = document.getElementById('iosInstallGuide');
         if (guide) {
-            // 이전에 '확인'을 누른 적이 있는지 체크 (하루 동안 보이지 않게 처리 가능)
-            const guideHiddenUntil = localStorage.getItem('iosGuideHiddenUntil');
-            if (!guideHiddenUntil || new Date().getTime() > parseInt(guideHiddenUntil)) {
-                guide.classList.add('visible');
-            }
+            guide.classList.add('visible');
         }
+        return true; // 가이드를 띄웠음 (차단 필요)
     }
+    return false; // 통과
 }
 
 function closeIosSettingsGuide() {
     const guide = document.getElementById('iosInstallGuide');
     if (guide) {
         guide.classList.remove('visible');
-        // 24시간 동안 보이지 않게 설정
-        const hideUntil = new Date().getTime() + (24 * 60 * 60 * 1000);
-        localStorage.setItem('iosGuideHiddenUntil', hideUntil);
     }
 }
 
@@ -807,7 +841,21 @@ async function loadSelectedForm() {
 
     // [수정] 양식 선택이 없을 경우 (또는 홈 버튼 클릭 시) 초기 화면으로 복귀
     if (!sheetName) {
-        formContainer.innerHTML = '<h3>측정값 입력 폼</h3><p id="formMessage">햄버거 메뉴(☰)를 열어 새 파일을 업로드하거나 기존 양식을 선택해주세요.</p>';
+        const isNotifActive = getFromStorage('isNotificationActive') === true;
+        const checkedAttr = isNotifActive ? 'checked' : '';
+
+        // 요청사항 2: 메인 화면에 알림 토글 추가
+        formContainer.innerHTML = `
+            <h3>측정값 입력 폼</h3>
+            <p id="formMessage">메뉴(☰)를 열어 새 양식을 업로드하거나 기존 양식을 선택해주세요.</p>
+            <div class="switch-container" style="max-width:300px; margin: 20px auto; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                <label class="switch">
+                    <input type="checkbox" id="notificationToggleMain" ${checkedAttr}>
+                    <span class="slider"></span>
+                </label>
+            </div>
+        `;
+
         currentSheetInfo = null;
         document.getElementById('favoritesSection').classList.remove('hidden');
         updateHomeButtonVisibility();
@@ -934,11 +982,7 @@ function promptForFavoriteSelection(favId) {
     modal.innerHTML = `
             <h4>즐겨찾기 등록</h4>
             <p>이 슬롯에 등록할 양식을 선택해주세요.</p>
-            <select id="favModalSelect"></select>
-            <div class="sidenav-section reset-section">
-                <button id="notificationBtn" class="reset-button" style="background-color: #4CAF50; margin-bottom: 10px;">🔔 알림 켜기</button>
-                <button id="resetFavoritesBtn" class="reset-button">⭐ 즐겨찾기 초기화</button>
-            </div>
+            <select id="favModalSelect"></select>            
             <div class="fav-modal-buttons">
                 <button id="favModalCancel">취소</button>
                 <button id="favModalRegister" class="primary">등록</button>
