@@ -46,7 +46,6 @@
 
                 <div class="sidenav-section reset-section">
                     <div class="switch-container">
-                        <span class="switch-label">알람 ON/OFF</span>
                         <label class="switch">
                             <input type="checkbox" id="notificationToggle">
                             <span class="slider"></span>
@@ -81,18 +80,14 @@
     <div id="keywordModalOverlay" class="keyword-modal-overlay"></div>
     <div id="keywordModal" class="keyword-modal-content">
         <h3>알림 키워드 설정</h3>
-        <p>알림을 받을 키워드를 입력해주세요.</p>
 
         <div class="keyword-input-wrapper">
             <input type="text" id="keywordInput" placeholder="예: 전기사업소, 경전철 전기">
         </div>
 
         <div class="keyword-help-text">
-            <strong>입력 방법:</strong><br>
-            - <strong>쉼표(,)</strong>: 또는 (OR)<br>
-            - <strong>공백(띄어쓰기)</strong>: 그리고 (AND)<br>
-            예: <code>전기사업소, 경전철 전기</code><br>
-            => "전기사업소"가 포함되거나, ("경전철"과 "전기"가 모두 포함된) 경우 알림
+            예: 전기사업소, 경전철 전기<br>
+            => "전기사업소" 포함 or "경전철"과 "전기" 모두 포함
         </div>
 
         <div class="keyword-modal-buttons">

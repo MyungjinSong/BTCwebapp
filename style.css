@@ -562,24 +562,19 @@ header {
 .switch-container {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
+  justify-content: center;
+  margin-bottom: 12px;
   background: white;
-  padding: 10px;
+  padding: 8px;
   border-radius: 4px;
   border: 1px solid #ddd;
-}
-
-.switch-label {
-  font-weight: bold;
-  font-size: 1.1em;
 }
 
 .switch {
   position: relative;
   display: inline-block;
-  width: 50px;
-  height: 26px;
+  width: 180px;
+  height: 38px;
 }
 
 .switch input {
@@ -597,23 +592,45 @@ header {
   bottom: 0;
   background-color: #ccc;
   transition: .4s;
-  border-radius: 34px;
+  border-radius: 38px;
+  display: flex;
+  align-items: center;
 }
 
 .slider:before {
   position: absolute;
   content: "";
-  height: 18px;
-  width: 18px;
+  height: 30px;
+  width: 30px;
   left: 4px;
   bottom: 4px;
   background-color: white;
   transition: .4s;
   border-radius: 50%;
+  z-index: 2;
+}
+
+.slider:after {
+  content: '🔔 경조사 알람 OFF';
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  font-size: 0.85em;
+  font-weight: bold;
+  color: white;
+  padding-left: 20px;
+  box-sizing: border-box;
+  transition: .4s;
 }
 
 input:checked+.slider {
   background-color: #4CAF50;
+}
+
+input:checked+.slider:after {
+  content: '🔔 경조사 알람 ON';
+  padding-left: 0;
+  padding-right: 20px;
 }
 
 input:focus+.slider {
@@ -621,7 +638,7 @@ input:focus+.slider {
 }
 
 input:checked+.slider:before {
-  transform: translateX(24px);
+  transform: translateX(142px);
 }
 
 /* --- Keyword Modal --- */

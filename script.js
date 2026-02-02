@@ -149,9 +149,13 @@ window.onload = function () {
             });
     }
 
-    // 알림 토글 리스너
+    // 알림 토글 리스너 및 초기 상태 설정
     const notifToggle = document.getElementById('notificationToggle');
     if (notifToggle) {
+        // 초기 로드 시 로컬 스토리지의 상태 반영 (서버 연동 전 임시)
+        const isNotifActive = getFromStorage('isNotificationActive') === true;
+        notifToggle.checked = isNotifActive;
+
         notifToggle.addEventListener('change', function (e) {
             if (this.checked) {
                 // ON으로 변경 시 모달 띄우기
@@ -290,6 +294,7 @@ async function handleKeywordSave() {
 
         // 로컬 저장
         saveToStorage('userKeywords', keywords);
+        saveToStorage('isNotificationActive', true);
 
         // 서버 전송
         await sendTokenToServer(token, keywords, true);
@@ -306,6 +311,9 @@ async function handleKeywordSave() {
 }
 
 async function disableNotification() {
+    // 로컬 상태 즉시 반영
+    saveToStorage('isNotificationActive', false);
+
     // 토큰이 있나?
     if (!messaging) return;
 
