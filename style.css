@@ -562,12 +562,11 @@ header {
 .switch-container {
   display: flex;
   align-items: center;
-  justify-content: center;
   margin-bottom: 12px;
-  background: white;
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid #ddd;
+}
+
+.sidenav .switch-container {
+  justify-content: center;
 }
 
 .switch {

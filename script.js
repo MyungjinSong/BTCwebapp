@@ -579,7 +579,46 @@ function createDynamicForm(formData, formTitle) {
       </button>`;
     }
 
-    formContainer.innerHTML = `<h3 style="display:flex;align-items:center;gap:8px;"><span style="flex:1;min-width:80px;">${formTitle || '측정값 입력 폼'}</span>${downloadBtnHtml}</h3>`;
+    // 폼 생성 전 내용 초기화 대신 숨김 처리
+    const formMsg = document.getElementById('formMessage');
+    const toggleContainer = document.getElementById('mainToggleContainer');
+    if (formMsg) formMsg.style.display = 'none';
+    if (toggleContainer) toggleContainer.style.display = 'none';
+
+    // 기존 폼 제거
+    const oldForm = document.getElementById('measurementForm');
+    if (oldForm) oldForm.remove();
+
+    // 제목 및 다운로드 버튼 업데이트
+    // 기존 H3 찾아서 업데이트
+    let h3 = formContainer.querySelector('h3');
+    if (!h3) {
+        h3 = document.createElement('h3');
+        formContainer.prepend(h3);
+    }
+
+    // 다운로드 버튼 HTML 구성
+    if (formTitle) {
+        // ... (위의 다운로드 버튼 로직 활용, 여기서는 생략하고 innerHTML에 합침)
+        // 기존 코드는 innerHTML 전체를 교체했으므로 H3 내부를 교체
+        const displayName = currentSheetInfo.displayName || currentSheetInfo.sheetName;
+        const fileName = `${displayName}_${fileDateStr || ''}.xlsx`;
+        prepareXlsxInAdvance(null, currentSheetInfo.sheetName, fileName);
+
+        downloadBtnHtml = `<button id="xlsxDownloadBtn"
+        onclick="triggerPreparedDownload('xlsxDownloadBtn')"
+        disabled
+        style="margin-left:10px; font-size:0.95em; padding: 6px 12px; background-color: #ccc; color: #666;
+              border: none; border-radius: 4px; font-weight: bold; cursor: not-allowed;">
+        파일 준비중.. ${lastDateStr}
+      </button>`;
+    }
+
+    h3.style.display = 'flex';
+    h3.style.alignItems = 'center';
+    h3.style.gap = '8px';
+    h3.innerHTML = `<span style="flex:1;min-width:80px;">${formTitle || '측정값 입력 폼'}</span>${downloadBtnHtml}`;
+
     document.getElementById('favoritesSection').classList.add('hidden');
 
     const formElement = document.createElement('form');
@@ -841,20 +880,19 @@ async function loadSelectedForm() {
 
     // 양식 선택이 없을 경우 (또는 홈 버튼 클릭 시) 초기 화면으로 복귀
     if (!sheetName) {
-        const isNotifActive = getFromStorage('isNotificationActive') === true;
-        const checkedAttr = isNotifActive ? 'checked' : '';
+        // [수정] 정적 요소 다시 보이기
+        const formMsg = document.getElementById('formMessage');
+        const toggleContainer = document.getElementById('mainToggleContainer');
+        if (formMsg) formMsg.style.display = 'block';
+        if (toggleContainer) toggleContainer.style.display = 'flex'; // switch-container는 flex나 block이나 상관없지만, 원래 스타일에 맞게
 
-        // 요청사항 2: 메인 화면에 알림 토글 추가
-        formContainer.innerHTML = `
-            <h3>측정값 입력 폼</h3>
-            <p id="formMessage">메뉴(☰)를 열어 새 양식을 업로드하거나 기존 양식을 선택해주세요.</p>
-            <div class="switch-container" style="max-width:300px; margin: 20px auto; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                <label class="switch">
-                    <input type="checkbox" id="notificationToggleMain" ${checkedAttr}>
-                    <span class="slider"></span>
-                </label>
-            </div>
-        `;
+        // 기존 폼 제거 (만약 있다면)
+        const oldForm = document.getElementById('measurementForm');
+        if (oldForm) oldForm.remove();
+
+        // 제목 원복
+        let h3 = formContainer.querySelector('h3');
+        if (h3) h3.innerHTML = '측정값 입력 폼';
 
         currentSheetInfo = null;
         document.getElementById('favoritesSection').classList.remove('hidden');
