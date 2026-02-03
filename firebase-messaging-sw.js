@@ -45,7 +45,7 @@ self.addEventListener('notificationclick', function (event) {
     } else if (event.notification.data && event.notification.data.FCM_MSG && event.notification.data.FCM_MSG.notification && event.notification.data.FCM_MSG.notification.click_action) {
         clickUrl = event.notification.data.FCM_MSG.notification.click_action;
     } else {
-        clickUrl = 'https://myungjinsong.github.io/btc_webapp/'; // 기본 URL
+        clickUrl = 'https://somyun.github.io/btc_webapp/'; // 기본 URL
     }
 
     event.waitUntil(
