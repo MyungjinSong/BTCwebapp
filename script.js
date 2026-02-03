@@ -987,6 +987,9 @@ async function loadSelectedForm() {
         // [Issue 2 Fix] 홈 복귀 시 dirty flag 초기화
         isMeasurementDirty = false;
 
+        // [Issue 4 Fix] 홈 상태 히스토리 추가 (이동 확정 시점)
+        addHomeStateToHistory();
+
         closeMenu();
         return;
     }
@@ -1034,10 +1037,11 @@ function initializeFavorites() {
     if (homeBtn) {
         homeBtn.addEventListener('click', function () {
             document.getElementById('formSelect').value = '';
-            currentSheetInfo = null;
+            // [Issue 4 Fix] 여기서 상태를 초기화하지 않고 loadSelectedForm에 위임
+            // currentSheetInfo = null; 
             loadSelectedForm();
-            updateHomeButtonVisibility();
-            addHomeStateToHistory();
+            // updateHomeButtonVisibility();
+            // addHomeStateToHistory();
         });
     }
 }
