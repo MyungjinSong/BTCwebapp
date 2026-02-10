@@ -36,6 +36,8 @@ let favorites = {};
 let isMeasurementDirty = false;
 let preparedDownload = null;
 let validationData = {};
+let sortableInstance = null;
+let isSortMode = false;
 
 // --- API 통신 헬퍼 함수 ---
 async function callApi(action, method = 'GET', data = null) {
@@ -629,8 +631,12 @@ async function processFileUpload(fileData, userChoice) {
 // --- 동적 폼 생성 ---
 function createDynamicForm(formData, formTitle) {
     const formContainer = document.getElementById('dynamicFormContainer');
+    const sheetName = currentSheetInfo.sheetName;
 
-    // 날짜 포맷
+    // [1] 저장된 순서가 있으면 데이터 정렬
+    formData = sortFormData(formData, sheetName);
+
+    // 날짜 포맷 (기존 코드 유지)
     let lastDateStr = '';
     let fileDateStr = '';
     if (currentSheetInfo?.lastModifiedDate) {
@@ -641,61 +647,49 @@ function createDynamicForm(formData, formTitle) {
         } catch (e) { }
     }
 
-    // 엑셀 다운로드 버튼 (미리 준비)
+    // 엑셀 다운로드 버튼 (기존 코드 유지)
     let downloadBtnHtml = '';
     if (formTitle) {
         const displayName = currentSheetInfo.displayName || currentSheetInfo.sheetName;
         const fileName = `${displayName}_${fileDateStr || ''}.xlsx`;
-        prepareXlsxInAdvance(null, currentSheetInfo.sheetName, fileName); // fileId는 null (백엔드가 알아서 처리)
-
-        downloadBtnHtml = `<button id="xlsxDownloadBtn"
-        onclick="triggerPreparedDownload('xlsxDownloadBtn')"
-        disabled
-        style="margin-left:10px; font-size:0.95em; padding: 6px 12px; background-color: #ccc; color: #666;
-              border: none; border-radius: 4px; font-weight: bold; cursor: not-allowed;">
-        파일 준비중.. ${lastDateStr}
-      </button>`;
+        prepareXlsxInAdvance(null, currentSheetInfo.sheetName, fileName);
+        downloadBtnHtml = `<button id="xlsxDownloadBtn" onclick="triggerPreparedDownload('xlsxDownloadBtn')" disabled style="margin-left:10px; font-size:0.95em; padding: 6px 12px; background-color: #ccc; color: #666; border: none; border-radius: 4px; font-weight: bold; cursor: not-allowed;">파일 준비중.. ${lastDateStr}</button>`;
     }
 
-    // 폼 생성 전 내용 초기화 대신 숨김 처리
+    // 초기화
     const formMsg = document.getElementById('formMessage');
     const toggleContainer = document.getElementById('mainToggleContainer');
     if (formMsg) formMsg.style.display = 'none';
     if (toggleContainer) toggleContainer.style.display = 'none';
 
-    // 기존 폼 제거
     const oldForm = document.getElementById('measurementForm');
     if (oldForm) oldForm.remove();
 
-    // 제목 및 다운로드 버튼 업데이트
-    // 기존 H3 찾아서 업데이트
+    // [2] 헤더 구성: 제목 + 순서변경 버튼 + 다운로드 버튼
     let h3 = formContainer.querySelector('h3');
     if (!h3) {
         h3 = document.createElement('h3');
         formContainer.prepend(h3);
     }
 
-    // 다운로드 버튼 HTML 구성
-    if (formTitle) {
-        // ... (위의 다운로드 버튼 로직 활용, 여기서는 생략하고 innerHTML에 합침)
-        // 기존 코드는 innerHTML 전체를 교체했으므로 H3 내부를 교체
-        const displayName = currentSheetInfo.displayName || currentSheetInfo.sheetName;
-        const fileName = `${displayName}_${fileDateStr || ''}.xlsx`;
-        prepareXlsxInAdvance(null, currentSheetInfo.sheetName, fileName);
-
-        downloadBtnHtml = `<button id="xlsxDownloadBtn"
-        onclick="triggerPreparedDownload('xlsxDownloadBtn')"
-        disabled
-        style="margin-left:10px; font-size:0.95em; padding: 6px 12px; background-color: #ccc; color: #666;
-              border: none; border-radius: 4px; font-weight: bold; cursor: not-allowed;">
-        파일 준비중.. ${lastDateStr}
-      </button>`;
-    }
+    // 순서 변경 버튼 HTML
+    const sortBtnHtml = `
+        <button id="toggleSortBtn" type="button" onclick="toggleSortMode()" 
+            style="margin-left:auto; width:auto; padding: 6px 10px; background:transparent; color:#333; border:1px solid #ccc; font-size:0.9em;">
+            ⇅ 순서변경
+        </button>`;
 
     h3.style.display = 'flex';
     h3.style.alignItems = 'center';
     h3.style.gap = '8px';
-    h3.innerHTML = `<span style="flex:1;min-width:80px;">${formTitle || '측정값 입력 폼'}</span>${downloadBtnHtml}`;
+    h3.style.flexWrap = 'wrap'; // 버튼 많아지면 줄바꿈
+
+    // 제목 영역 (flex-grow로 공간 차지)
+    h3.innerHTML = `
+        <span style="margin-right:auto;">${formTitle || '측정값 입력 폼'}</span>
+        ${sortBtnHtml}
+        ${downloadBtnHtml}
+    `;
 
     document.getElementById('favoritesSection').classList.add('hidden');
 
@@ -703,33 +697,33 @@ function createDynamicForm(formData, formTitle) {
     formElement.id = 'measurementForm';
 
     if (!formData || !Array.isArray(formData) || formData.length === 0) {
-        const noDataMessage = document.createElement('p');
-        noDataMessage.textContent = '폼을 생성할 데이터가 없습니다.';
-        noDataMessage.className = 'error';
-        formContainer.appendChild(noDataMessage);
+        formContainer.innerHTML += '<p class="error">데이터가 없습니다.</p>';
         return;
     }
 
-    // 유효성 검사 데이터 로드
     const uniqueIds = formData.map(d => d.uniqueId).filter(id => id);
-    if (uniqueIds.length > 0) {
-        loadValidationData(uniqueIds);
-    }
+    if (uniqueIds.length > 0) loadValidationData(uniqueIds);
 
-    // 폼 필드 생성
+    // [3] 폼 필드 생성 Loop
     let prevLocPrefix = null;
+
     formData.forEach((data, index) => {
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
+        formGroup.dataset.uniqueId = data.uniqueId; // 정렬 저장을 위해 ID 심어둠
+
+        // 위치(Location) 변경 시 구분선 처리 (별도 div 대신 클래스 추가)
         const currLocPrefix = (data.location || '').substring(0, 3);
         if (index > 0 && prevLocPrefix !== null && prevLocPrefix !== currLocPrefix) {
-            const line = document.createElement('div');
-            line.style.borderTop = '1.5px solid #ddd';
-            line.style.margin = '8px 0';
-            formElement.appendChild(line);
+            formGroup.classList.add('group-start'); // CSS에서 border-top 처리
         }
         prevLocPrefix = currLocPrefix;
 
-        const formGroup = document.createElement('div');
-        formGroup.className = 'form-group';
+        // 드래그 핸들 추가 (햄버거 아이콘)
+        const handle = document.createElement('div');
+        handle.className = 'drag-handle';
+        handle.innerHTML = '☰'; // 또는 SVG 아이콘 사용
+        formGroup.appendChild(handle);
 
         const locationSpan = document.createElement('span');
         locationSpan.className = 'item-location';
@@ -738,7 +732,6 @@ function createDynamicForm(formData, formTitle) {
         const itemSpan = document.createElement('span');
         itemSpan.className = 'item-detail';
 
-        // placeholder 처리
         let itemText = '';
         let placeholderText = '측정값';
         const words = (data.item || '').trim().split(/\s+/).filter(w => w);
@@ -756,16 +749,13 @@ function createDynamicForm(formData, formTitle) {
         input.inputMode = 'decimal';
         input.step = 'any';
         input.placeholder = placeholderText;
-        input.value = ''; // 초기값은 빈 상태 (필요하면 data.value 사용 가능)
+        input.value = '';
         input.dataset.location = data.location;
         input.dataset.item = data.item;
         input.dataset.unit = data.unit;
         input.dataset.uniqueId = data.uniqueId;
-        input.dataset.index = index;
 
-        input.addEventListener('blur', function () {
-            validateInputValue(this);
-        });
+        input.addEventListener('blur', function () { validateInputValue(this); });
 
         const unitSpan = document.createElement('span');
         unitSpan.className = 'measurement-unit';
@@ -784,11 +774,16 @@ function createDynamicForm(formData, formTitle) {
     submitButton.textContent = '측정값 저장';
     submitButton.id = 'saveMeasurements';
     submitButton.onclick = saveMeasurements;
-    formElement.appendChild(submitButton);
 
+    // 저장 버튼은 드래그 영역 밖이어야 안전하므로 formElement 밖이나 마지막에 배치
+    formElement.appendChild(submitButton);
     formContainer.appendChild(formElement);
+
     formElement.addEventListener('input', () => isMeasurementDirty = true);
     addHomeStateToHistory();
+
+    // [4] Sortable 초기화 (비활성화 상태로 시작)
+    initSortable();
 }
 
 // --- XLSX 다운로드 준비 ---
@@ -1231,4 +1226,113 @@ function updateHomeButtonVisibility() {
 }
 function addHomeStateToHistory() {
     history.pushState({ page: 'home' }, 'Home', '?page=home');
+}
+
+// --- 로컬 스토리지 관련 헬퍼함수 추가 ---
+// 순서 저장 키 생성
+function getOrderStorageKey(sheetName) {
+    return `itemOrder_${sheetName}`;
+}
+
+// 데이터 정렬 함수
+function sortFormData(formData, sheetName) {
+    const savedOrder = getFromStorage(getOrderStorageKey(sheetName));
+    if (!savedOrder || !Array.isArray(savedOrder)) return formData;
+
+    // 저장된 ID 순서대로 정렬
+    // uniqueId가 있는 경우를 가정 (없으면 item+location 조합 등을 써야 함)
+    // 여기서는 간단히 uniqueId가 있다고 가정합니다.
+
+    const orderMap = {};
+    savedOrder.forEach((id, index) => { orderMap[id] = index; });
+
+    return formData.sort((a, b) => {
+        const indexA = orderMap[a.uniqueId] !== undefined ? orderMap[a.uniqueId] : 9999;
+        const indexB = orderMap[b.uniqueId] !== undefined ? orderMap[b.uniqueId] : 9999;
+        return indexA - indexB;
+    });
+}
+
+//Sortable 제어함수 추가
+function initSortable() {
+    const el = document.getElementById('measurementForm');
+    if (!el) return;
+
+    // 저장 버튼은 드래그 대상에서 제외하기 위해 필터링 필요
+    // draggable 옵션으로 .form-group만 드래그 가능하게 설정
+    sortableInstance = Sortable.create(el, {
+        animation: 150,
+        handle: '.drag-handle', // 이 핸들을 잡아야만 드래그 가능
+        draggable: '.form-group', // 드래그 가능한 요소
+        disabled: true, // 초기엔 비활성화
+        ghostClass: 'sortable-ghost',
+        onEnd: function (evt) {
+            // 드래그가 끝날 때마다 순서 저장
+            saveCurrentOrder();
+
+            // 구분선(group-start) 재계산 (순서가 바뀌었으니)
+            recalculateDividers();
+        }
+    });
+}
+
+function toggleSortMode() {
+    const btn = document.getElementById('toggleSortBtn');
+    const form = document.getElementById('measurementForm');
+
+    isSortMode = !isSortMode;
+
+    if (isSortMode) {
+        // 편집 모드 켜기
+        btn.textContent = '✅ 완료';
+        btn.style.background = '#e7f3ff';
+        btn.style.borderColor = '#2196f3';
+        btn.style.color = '#0b69d3';
+
+        form.classList.add('sort-mode');
+        if (sortableInstance) sortableInstance.option('disabled', false);
+
+        showStatus('핸들(☰)을 드래그하여 순서를 변경하세요.', 'success', 2000);
+    } else {
+        // 편집 모드 끄기
+        btn.textContent = '⇅ 순서변경';
+        btn.style.background = 'transparent';
+        btn.style.borderColor = '#ccc';
+        btn.style.color = '#333';
+
+        form.classList.remove('sort-mode');
+        if (sortableInstance) sortableInstance.option('disabled', true);
+
+        showStatus('순서가 저장되었습니다.', 'success', 2000);
+    }
+}
+
+function saveCurrentOrder() {
+    if (!currentSheetInfo) return;
+
+    const formGroups = document.querySelectorAll('#measurementForm .form-group');
+    const newOrderIds = Array.from(formGroups).map(el => el.dataset.uniqueId);
+
+    saveToStorage(getOrderStorageKey(currentSheetInfo.sheetName), newOrderIds);
+}
+
+function recalculateDividers() {
+    // 순서 변경 후, "위치"가 달라지는 지점에 다시 줄을 그어줌
+    const formGroups = document.querySelectorAll('#measurementForm .form-group');
+    let prevLocPrefix = null;
+
+    formGroups.forEach((group, index) => {
+        // 내부 input에서 location 정보 가져오기
+        const input = group.querySelector('input');
+        const loc = input ? input.dataset.location : '';
+        const currLocPrefix = loc.substring(0, 3);
+
+        // 기존 클래스 제거
+        group.classList.remove('group-start');
+
+        if (index > 0 && prevLocPrefix !== null && prevLocPrefix !== currLocPrefix) {
+            group.classList.add('group-start');
+        }
+        prevLocPrefix = currLocPrefix;
+    });
 }

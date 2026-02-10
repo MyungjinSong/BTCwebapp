@@ -815,3 +815,41 @@ input:checked+.slider:before {
 #keywordInput:focus::placeholder {
   color: transparent;
 }
+
+/* 드래그 핸들 (평소에는 숨김) */
+.drag-handle {
+  display: none;
+  flex: 0 0 30px;
+  width: 30px;
+  cursor: move;
+  color: #999;
+  font-size: 1.5em;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  /* 터치 스크롤 방지 */
+}
+
+/* 편집 모드일 때 핸들 보이기 */
+.sort-mode .drag-handle {
+  display: flex;
+}
+
+/* 편집 모드일 때 입력창 비활성화 느낌 (실수 방지) */
+.sort-mode input {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* 드래그 중인 아이템 스타일 */
+.sortable-ghost {
+  background-color: #e3f2fd;
+  opacity: 0.8;
+}
+
+/* 구분선 스타일 변경 (JS 로직 변경에 맞춤) */
+.group-start {
+  border-top: 2px solid #ddd;
+  margin-top: 8px;
+  padding-top: 8px;
+}
