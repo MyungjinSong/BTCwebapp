@@ -636,7 +636,7 @@ function createDynamicForm(formData, formTitle) {
     // [1] 저장된 순서가 있으면 데이터 정렬
     formData = sortFormData(formData, sheetName);
 
-    // 날짜 포맷 (기존 코드 유지)
+    // 날짜 포맷
     let lastDateStr = '';
     let fileDateStr = '';
     if (currentSheetInfo?.lastModifiedDate) {
@@ -647,7 +647,7 @@ function createDynamicForm(formData, formTitle) {
         } catch (e) { }
     }
 
-    // 엑셀 다운로드 버튼 (기존 코드 유지)
+    // 엑셀 다운로드 버튼
     let downloadBtnHtml = '';
     if (formTitle) {
         const displayName = currentSheetInfo.displayName || currentSheetInfo.sheetName;
@@ -656,11 +656,23 @@ function createDynamicForm(formData, formTitle) {
         downloadBtnHtml = `<button id="xlsxDownloadBtn"
         onclick="triggerPreparedDownload('xlsxDownloadBtn')"
         disabled
-        style="width: auto; margin-left: 5px; margin-right: 5px; font-size:0.85em; padding: 6px 10px; background-color: #ccc; color: #666;
+        style="width: auto; margin-left: 5px; margin-right: 5px; font-size:0.9em; padding: 6px 10px; background-color: #ccc; color: #666;
               border: none; border-radius: 4px; font-weight: bold; cursor: not-allowed;">
         파일 준비중..
       </button>`
     }
+
+    // 정렬 초기화 버튼 (평소에는 숨겨져 있음 display: none)
+    const resetBtnHtml = `
+        <button id="resetOrderBtn" type="button" onclick="handleResetOrder()" title="초기 순서로 복원"
+            style="display: none; width: auto; padding: 6px 10px; margin-left: 5px; margin-right: 5px; font-size:0.9em; align-items: center; justify-content: center;
+                   background:transparent; color: #666; border: 1px solid #ffcdd2; border-radius: 4px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1 4 1 10 7 10"></polyline>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+            </svg>
+            기본값
+        </button>`;
 
     // 초기화
     const formMsg = document.getElementById('formMessage');
@@ -687,14 +699,18 @@ function createDynamicForm(formData, formTitle) {
 
     h3.style.display = 'flex';
     h3.style.alignItems = 'center';
+    h3.style.justifyContent = 'space-between';
+    h3.style.flexWrap = 'nowrap';
+    h3.style.marginBottom = '16px';
     h3.style.gap = '5px';
-    h3.style.flexWrap = 'nowrap'; // 버튼 많아지면 줄바꿈
 
-    // 제목 영역 (flex-grow로 공간 차지)
+    // 제목 영역
     h3.innerHTML = `
-        <span style="margin-right:auto;">${formTitle || '측정값 입력 폼'}</span>
-        ${downloadBtnHtml}
-        ${sortBtnHtml}
+        <span style="flex: 1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size: 1.1em;">
+            ${formTitle || '측정값 입력 폼'}
+        </span>
+        <div style="display: flex; flex-shrink: 0;">
+            ${resetBtnHtml}    ${downloadBtnHtml} ${sortBtnHtml}     </div>
     `;
 
     document.getElementById('favoritesSection').classList.add('hidden');
@@ -1285,30 +1301,64 @@ function initSortable() {
 
 function toggleSortMode() {
     const btn = document.getElementById('toggleSortBtn');
+    const downloadBtn = document.getElementById('xlsxDownloadBtn'); // 다운로드 버튼 ID
+    const resetBtn = document.getElementById('resetOrderBtn');      // 초기화 버튼 ID
     const form = document.getElementById('measurementForm');
 
     isSortMode = !isSortMode;
 
     if (isSortMode) {
         // 편집 모드 켜기
+
+        // 1. 버튼 스타일 변경 (파란색 활성화)
         btn.style.background = '#e7f3ff';
         btn.style.borderColor = '#2196f3';
         btn.style.color = '#0b69d3';
 
+        // 2. 버튼 스위칭 (다운로드 숨김, 초기화 보임)
+        if (downloadBtn) downloadBtn.style.display = 'none';
+        if (resetBtn) resetBtn.style.display = 'flex';
+
+        // 3. Sortable 활성화
         form.classList.add('sort-mode');
         if (sortableInstance) sortableInstance.option('disabled', false);
 
         showStatus('핸들(☰)을 드래그하여 순서를 변경하세요.', 'success', 2000);
     } else {
         // 편집 모드 끄기
+
+        // 1. 버튼 스타일 복구
         btn.style.background = '#fff';
         btn.style.borderColor = '#ccc';
         btn.style.color = '#333';
 
+        // 2. 버튼 스위칭 (다운로드 보임, 초기화 숨김)
+        if (downloadBtn) downloadBtn.style.display = 'flex';
+        if (resetBtn) resetBtn.style.display = 'none';
+
+        // 3. Sortable 비활성화
         form.classList.remove('sort-mode');
         if (sortableInstance) sortableInstance.option('disabled', true);
 
         showStatus('순서가 저장되었습니다.', 'success', 2000);
+    }
+}
+
+// 정렬 초기화 핸들러
+function handleResetOrder() {
+    if (!currentSheetInfo) return;
+
+    if (confirm('정렬을 기본 순서로 되돌리시겠습니까?')) {
+        // 1. 로컬 스토리지에서 순서 데이터 삭제
+        const key = getOrderStorageKey(currentSheetInfo.sheetName);
+        localStorage.removeItem(key);
+
+        // 2. 알림 표시
+        showStatus('정렬이 초기화되었습니다.', 'success', 1000);
+
+        // 3. 폼 새로고침 (기본 순서로 다시 렌더링)
+        // 주의: toggleSortMode 상태는 초기화되므로 다시 폼이 로드되면 일반 모드가 됩니다.
+        loadSelectedForm();
     }
 }
 
