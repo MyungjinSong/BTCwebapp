@@ -662,7 +662,18 @@ function createDynamicForm(formData, formTitle) {
       </button>`
     }
 
-    // 정렬 초기화 버튼 (평소에는 숨겨져 있음 display: none)
+    // [1] 간격 조절 콤보박스 (평소에는 숨김 display: none)
+    // 4px(좁게), 8px(보통), 12px(넓게) 옵션 제공
+    const spacingSelectHtml = `
+        <select id="spacingSelect" onchange="handleSpacingChange(this.value)" 
+            style="display: none; width: auto; padding: 6px 10px; margin: 10px 0 10px 0 ; font-size: 0.9em; align-items: center; justify-content: center; vertical-align: bottom; border: 1px solid rgb(204, 204, 204); border-radius: 4px; background: rgb(255, 255, 255);">
+            <option value="4">좁게</option>
+            <option value="8">보통</option>
+            <option value="12" selected>넓게</option>
+        </select>
+    `;
+
+    // [2]정렬 초기화 버튼 (평소에는 숨겨져 있음 display: none)
     const resetBtnHtml = `
         <button id="resetOrderBtn" type="button" onclick="handleResetOrder()" title="초기 순서로 복원"
             style="display: none; width: auto; padding: 6px 10px; margin-left: 5px; margin-right: 5px; font-size:0.9em; align-items: center; justify-content: center;
@@ -710,7 +721,8 @@ function createDynamicForm(formData, formTitle) {
             ${formTitle || '측정값 입력 폼'}
         </span>
         <div style="display: flex; flex-shrink: 0;">
-            ${resetBtnHtml}    ${downloadBtnHtml} ${sortBtnHtml}     </div>
+            ${spacingSelectHtml} ${resetBtnHtml} ${downloadBtnHtml} ${sortBtnHtml}
+        </div>
     `;
 
     document.getElementById('favoritesSection').classList.add('hidden');
@@ -790,6 +802,15 @@ function createDynamicForm(formData, formTitle) {
 
         formElement.appendChild(formGroup);
     });
+
+    // 폼 생성 직후, 저장된 간격 설정이 있다면 적용
+    const savedSpacing = localStorage.getItem('userFormSpacing');
+    if (savedSpacing) {
+        handleSpacingChange(savedSpacing);
+        // 콤보박스 값도 동기화
+        const select = document.getElementById('spacingSelect');
+        if (select) select.value = savedSpacing;
+    }
 
     const submitButton = document.createElement('button');
     submitButton.type = 'button';
@@ -1303,6 +1324,7 @@ function toggleSortMode() {
     const btn = document.getElementById('toggleSortBtn');
     const downloadBtn = document.getElementById('xlsxDownloadBtn'); // 다운로드 버튼 ID
     const resetBtn = document.getElementById('resetOrderBtn');      // 초기화 버튼 ID
+    const spacingSelect = document.getElementById('spacingSelect'); // 간격 콤보박스
     const form = document.getElementById('measurementForm');
 
     isSortMode = !isSortMode;
@@ -1315,9 +1337,10 @@ function toggleSortMode() {
         btn.style.borderColor = '#2196f3';
         btn.style.color = '#0b69d3';
 
-        // 2. 버튼 스위칭 (다운로드 숨김, 초기화 보임)
+        // 2. 버튼 스위칭 (다운로드 숨김, 초기화, 간격 콤보박스 보임)
         if (downloadBtn) downloadBtn.style.display = 'none';
         if (resetBtn) resetBtn.style.display = 'flex';
+        if (spacingSelect) spacingSelect.style.display = 'block';
 
         // 3. Sortable 활성화
         form.classList.add('sort-mode');
@@ -1332,9 +1355,10 @@ function toggleSortMode() {
         btn.style.borderColor = '#ccc';
         btn.style.color = '#333';
 
-        // 2. 버튼 스위칭 (다운로드 보임, 초기화 숨김)
+        // 2. 버튼 스위칭 (다운로드 보임, 초기화 숨김, 간격 콤보박스 숨김)
         if (downloadBtn) downloadBtn.style.display = 'flex';
         if (resetBtn) resetBtn.style.display = 'none';
+        if (spacingSelect) spacingSelect.style.display = 'none';
 
         // 3. Sortable 비활성화
         form.classList.remove('sort-mode');
@@ -1359,6 +1383,21 @@ function handleResetOrder() {
         // 3. 폼 새로고침 (기본 순서로 다시 렌더링)
         // 주의: toggleSortMode 상태는 초기화되므로 다시 폼이 로드되면 일반 모드가 됩니다.
         loadSelectedForm();
+    }
+}
+
+// 간격 변경 핸들러
+function handleSpacingChange(pxValue) {
+    // 1. CSS 변수 값을 변경하여 즉시 반영
+    document.documentElement.style.setProperty('--input-margin', pxValue + 'px');
+
+    // 2. 사용자가 선택한 값을 로컬스토리지에 저장 (다음에 왔을 때도 유지)
+    localStorage.setItem('userFormSpacing', pxValue);
+
+    // 3. 콤보박스 상태 동기화 (함수가 코드로 호출될 경우를 대비)
+    const select = document.getElementById('spacingSelect');
+    if (select && select.value !== pxValue) {
+        select.value = pxValue;
     }
 }
 

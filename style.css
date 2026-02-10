@@ -274,17 +274,25 @@ header {
   text-overflow: ellipsis;
 }
 
+/* 문서 전체에서 사용할 기본 간격 변수 선언 (기본값: 12px) */
+:root {
+  --input-margin: 12px;
+}
+
 .form-group input[type='number'] {
   flex: 0 0 90px;
   width: 90px;
-  padding: 2px;
+  padding: 4px;
   font-size: 1.12em;
   box-sizing: border-box;
   text-align: right;
   margin-left: auto;
   white-space: nowrap;
   overflow: hidden;
-  margin-top: 12px;
+  margin-top: var(--input-margin);
+  margin-bottom: var(--input-margin);
+  transition: margin 0.3s ease;
+  /* 부드럽게 간격이 바뀌는 애니메이션 효과 */
 }
 
 .measurement-unit {
